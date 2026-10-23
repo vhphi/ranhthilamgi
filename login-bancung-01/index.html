@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hệ Thống Đăng Nhập OTP Bóng Rổ & Bắn Cung</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            user-select: none;
+        }
+
+        body {
+            background: #111424;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+            color: #fff;
+        }
+
+        .container {
+            background: #171b30;
+            padding: 35px;
+            border-radius: 12px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.6);
+            text-align: center;
+            border: 1px solid #232a4a;
+        }
+
+        h2 { 
+            margin-bottom: 20px; 
+            color: #00f2fe; 
+            letter-spacing: 1px;
+            font-size: 24px;
+            text-transform: uppercase;
+        }
+        
+        p.desc {
+            margin-bottom: 20px; 
+            color: #a0a5c1;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        /* 1. Giao diện Đăng nhập */
+        #login-container { width: 380px; }
+        
+        .input-group { margin-bottom: 20px; text-align: left; }
+        .input-group label { display: block; margin-bottom: 6px; color: #a0a5c1; font-size: 14px; }
+        .input-group input {
+            width: 100%; padding: 12px; background: #0f111f;
+            border: 1px solid #2c3561; border-radius: 6px; color: #fff; outline: none;
+            font-size: 15px; transition: 0.3s;
+        }
+        .input-group input:focus { border-color: #00f2fe; box-shadow: 0 0 8px rgba(0, 242, 254, 0.3); }
+
+        button.main-btn {
+            width: 100%; padding: 14px; background: linear-gradient(45deg, #00f2fe, #4facfe); border: none;
+            border-radius: 6px; color: #fff; font-size: 16px; cursor: pointer;
+            font-weight: bold; transition: 0.3s; box-shadow: 0 4px 15px rgba(0, 242, 254, 0.2);
+        }
+        button.main-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0, 242, 254, 0.4); }
+        .error-msg { color: #ff4757; margin-top: 15px; font-size: 14px; display: none; }
+
+        /* 2. Giao diện OTP Bóng rổ */
+        #otp-container { display: none; flex-direction: column; align-items: center; width: 680px; }
+        .otp-display-flow { display: flex; gap: 15px; margin-bottom: 20px; justify-content: center; }
+        .otp-box {
+            width: 55px; height: 55px; background: #0f111f; border: 2px dashed #2c3561;
+            border-radius: 8px; font-size: 26px; font-weight: bold; line-height: 51px; color: #00f2fe;
+            transition: 0.3s;
+        }
+        .otp-box.filled { border-style: solid; border-color: #00f2fe; background: #171b30; animation: pop 0.3s ease; }
+        
+        @keyframes pop {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+            100% { transform: scale(1); }
+        }
+
+        .number-selector { display: flex; gap: 8px; margin-bottom: 20px; justify-content: center; width: 100%; }
+        .num-btn {
+            width: 40px; height: 40px; background: #2c3561; border: none; border-radius: 6px;
+            color: #fff; font-weight: bold; font-size: 16px; cursor: pointer; transition: 0.2s;
+        }
+        .num-btn:hover { background: #3b4885; }
+        .num-btn.active { background: #ff9f43; color: #fff; transform: scale(1.15); box-shadow: 0 0 12px #ff9f43; }
+        #basketballCanvas { background: #0f111f; border: 3px solid #2c3561; border-radius: 10px; cursor: grab; }
+        #basketballCanvas:active { cursor: grabbing; }
+
+        /* 3. Giao diện Bắn Cung */
+        #game-container { display: none; flex-direction: column; align-items: center; }
+        #score-board { font-size: 26px; margin-bottom: 15px; color: #00f2fe; font-weight: bold; text-shadow: 0 0 10px rgba(0,242,254,0.3); }
+        #archeryCanvas { background: #0f111f; border: 4px solid #2c3561; border-radius: 10px; cursor: crosshair; }
+    </style>
+</head>
+<body>
+
+    <!-- ================= 1. KHỐI ĐĂNG NHẬP ================= -->
+    <div id="login-container" class="container">
+        <h2>Hệ Thống Đăng Nhập</h2>
+        <p class="desc">Vui lòng nhập tài khoản và mật khẩu của bạn</p>
+        <div class="input-group">
+            <label for="username">Tài khoản</label>
+            <input type="text" id="username" placeholder="Nhập tài khoản...">
+        </div>
+        <div class="input-group">
+            <label for="password">Mật khẩu</label>
+            <input type="password" id="password" placeholder="Nhập mật khẩu...">
+        </div>
+        <button id="login-btn" class="main-btn">Tiếp tục nhận OTP</button>
+        <p id="login-error" class="error-msg">Vui lòng nhập đầy đủ thông tin!</p>
+    </div>
+
+    <!-- ================= 2. KHỐI OTP BÓNG RỔ ================= -->
+    <div id="otp-container" class="container">
+        <h2>Xác Thực OTP Bóng Rổ</h2>
+        <p class="desc">Chọn số $\rightarrow$ Kéo lùi bóng để lấy lực và hướng $\rightarrow$ Thả chuột để ném trúng rổ!</p>
+        
+        <div class="otp-display-flow">
+            <div class="otp-box" id="otp-0">-</div>
+            <div class="otp-box" id="otp-1">-</div>
+            <div class="otp-box" id="otp-2">-</div>
+            <div class="otp-box" id="otp-3">-</div>
+        </div>
+
+        <div class="number-selector" id="num-selector">
+            <!-- Tự động thêm các nút từ 1 đến 10 bằng JS -->
+        </div>
+
+        <canvas id="basketballCanvas" width="600" height="360"></canvas>
+    </div>
+
+    <!-- ================= 3. KHỐI GAME BẮN CUNG ================= -->
+    <div id="game-container">
+        <div id="score-board">MỤC TIÊU BẮN CUNG | ĐIỂM: <span id="score">0</span></div>
+        <canvas id="archeryCanvas" width="800" height="500"></canvas>
+        <p class="desc" style="margin-top: 15px;">Di chuyển chuột lên xuống để ngắm - Click chuột trái để bắn!</p>
+    </div>
+
+    <script>
+        // Điều hướng màn hình chuyển giao diện
+        const loginCtrl = document.getElementById('login-container');
+        const otpCtrl = document.getElementById('otp-container');
+        const gameCtrl = document.getElementById('game-container');
+
+        // Sự kiện click nút đăng nhập
+        document.getElementById('login-btn').addEventListener('click', () => {
+            const user = document.getElementById('username').value.trim();
+            const pass = document.getElementById('password').value.trim();
+            if (user === '' || pass === '') {
+                document.getElementById('login-error').style.display = 'block';
+            } else {
+                loginCtrl.style.display = 'none';
+                otpCtrl.style.display = 'flex';
+                initBasketballGame();
+            }
+        });
+
+        // =================================================================
+        // LOGIC GAME 1: XÁC THỰC OTP BÓNG RỔ
+        // =================================================================
+        const bCanvas = document.getElementById('basketballCanvas');
+        const bCtx = bCanvas.getContext('2d');
+        let selectedNumber = 1; // Số mặc định được chọn là 1
+        let otpCode = [];
+
+        // Tạo bộ nút chọn số từ 1 đến 10
+        const selector = document.getElementById('num-selector');
+        for(let i = 1; i <= 10; i++) {
+            const btn = document.createElement('button');
+            btn.className = `num-btn ${i === 1 ? 'active' : ''}`;
+            btn.innerText = i;
+            btn.onclick = () => {
+                document.querySelectorAll('.num-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                selectedNumber = i;
+            };
+            selector.appendChild(btn);
+        }
+
+        // Cấu hình vật lý bóng rổ
+        const startX = 100;
+        const startY = 280;
+        let ball = { x: startX, y: startY, vx: 0, vy: 0, radius: 16, isFlying: false };
+        const gravity = 0.45;
+        const bounce = 0.6; // Độ nảy khi va chạm tấm bảng
+
+        // Cấu hình rổ bóng
+        const board = { x: 510, y: 70, width: 8, height: 70 }; // Tấm bảng rổ sau
+        const basket = { x: 455, y: 120, width: 55, height: 6 };  // Vành rổ hứng bóng
+
+        let isDragging = false;
+        let dragX = 0, dragY = 0;
+
+        function initBasketballGame() {
+            bCanvas.addEventListener('mousedown', (e) => {
+                if (ball.isFlying) return;
+                const rect = bCanvas.getBoundingClientRect();
+                const mX = e.clientX - rect.left;
+                const mY = e.clientY - rect.top;
+                
+                // Click gần quả bóng để bắt đầu kéo kéo
+                if (Math.hypot(mX - ball.x, mY - ball.y) < 35) {
+                    isDragging = true;
+                    dragX = mX;
+                    dragY = mY;
+                }
+            });
+
+            bCanvas.addEventListener('mousemove', (e) => {
+                if (!isDragging) return;
+                const rect = bCanvas.getBoundingClientRect();
+                dragX = e.clientX - rect.left;
+                dragY = e.clientY - rect.top;
+            });
+
+            window.addEventListener('mouseup', () => {
+                if (!isDragging) return;
+                isDragging = false;
+                
+                // Tính lực ném tỷ lệ nghịch (kéo về sau ném về trước)
+                let dx = ball.x - dragX;
+                let dy = ball.y - dragY;
+                
+                ball.vx = dx * 0.16; // Tốc độ theo trục X
+                ball.vy = dy * 0.16; // Tốc độ theo trục Y
+                ball.isFlying = true;
+            });
+
+            basketballLoop();
+        }
+
+        function basketballLoop() {
+            if (otpCtrl.style.display === 'flex') {
+updateBasketball();
+drawBasketball();
+}
+requestAnimationFrame(basketballLoop);
+}
+function updateBasketball() {
+if (ball.isFlying) {
+ball.vy += gravity;
+ball.x += ball.vx;
+ball.y += ball.vy;
+// 1. Xử lý va chạm vật lý với tấm bảng rổ (nảy lại)
+if (ball.x + ball.radius > board.x && ball.x - ball.radius < board.x + board.width &&
+ball.y > board.y && ball.y < board.y + board.height) {
+ball.x = board.x - ball.radius;
+ball.vx = -ball.vx * bounce; // Đảo hướng vận tốc X và giảm lực
+}
+// 2. Kiểm tra bóng lọt rổ (rơi từ trên xuống chính xác tâm vành rổ)
+if (ball.vy > 0 && ball.x > basket.x && ball.x < basket.x + basket.width &&
+ball.y > basket.y - 6 && ball.y < basket.y + 12) {
+if(otpCode.length < 4) {
+otpCode.push(selectedNumber);
+const currentBox = document.getElementById(otp-${otpCode.length-1});
+currentBox.innerText = selectedNumber;
+currentBox.classList.add('filled');
+}
+resetBall();
+// Đủ 4 số mã OTP sẽ kích hoạt chuyển màn hình sang Game Bắn Cung
+if (otpCode.length === 4) {
+setTimeout(() => {
+otpCtrl.style.display = 'none';
+gameCtrl.style.display = 'flex';
+initArcheryGame();
+}, 500);
+}
+}
+// 3. Reset bóng nếu bay trượt ra ngoài màn hình
+if (ball.y > bCanvas.height + 50 || ball.x > bCanvas.width + 50 || ball.x < -50) {
+resetBall();
+}
+}
+}
+function resetBall() {
+ball.x = startX; ball.y = startY;
+ball.vx = 0; ball.vy = 0;
+ball.isFlying = false;
+}
+function drawBasketball() {
+bCtx.clearRect(0, 0, bCanvas.width, bCanvas.height);
+// Vẽ cột đỡ rổ
+bCtx.fillStyle = '#2c3561';
+bCtx.fillRect(525, 130, 12, 230);
+// Vẽ tấm bảng rổ đằng sau
+bCtx.fillStyle = '#fff';
+bCtx.fillRect(board.x, board.y, board.width, board.height);
+bCtx.strokeStyle = '#ff4757';
+bCtx.lineWidth = 2;
+bCtx.strokeRect(board.x, board.y, board.width, board.height);
+// Vẽ lưới rổ đan chéo
+bCtx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+bCtx.lineWidth = 1.5;
+bCtx.beginPath();
+for(let i=0; i<= basket.width; i+=11) {
+bCtx.moveTo(basket.x + i, basket.y);
+bCtx.lineTo(basket.x + 8 + (i * 0.7), basket.y + 35);
+bCtx.moveTo(basket.x + basket.width - i, basket.y);
+bCtx.lineTo(basket.x + basket.width - 8 - (i * 0.7), basket.y + 35);
+}
+bCtx.stroke();
+// Vẽ vành rổ màu cam đỏ
+bCtx.strokeStyle = '#ff4757';
+bCtx.lineWidth = 4;
+bCtx.beginPath();
+bCtx.moveTo(basket.x, basket.y);
+bCtx.lineTo(basket.x + basket.width, basket.y);
+bCtx.stroke();
+// Vẽ đường định hướng ngắm bắn khi đang giữ chuột kéo bóng
+if (isDragging) {
+bCtx.strokeStyle = 'rgba(255, 159, 67, 0.5)';
+bCtx.lineWidth = 3;
+bCtx.setLineDash([5, 5]);
+bCtx.beginPath();
+bCtx.moveTo(ball.x, ball.y);
+// Đường hướng ảo kéo ngược
+bCtx.lineTo(ball.x + (ball.x - dragX), ball.y + (ball.y - dragY));
+bCtx.stroke();
+bCtx.setLineDash([]);
+}
+// Vẽ quả bóng rổ
+bCtx.beginPath();
+bCtx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
+bCtx.fillStyle = '#ff9f43';
+bCtx.fill();
+bCtx.strokeStyle = '#333';
+bCtx.lineWidth = 1;
+bCtx.stroke();
+bCtx.closePath();
+// Hiển thị số đã chọn đè lên quả bóng rổ
+bCtx.fillStyle = '#111424';
+bCtx.font = 'bold 15px Arial';
+bCtx.textAlign = 'center';
+bCtx.textBaseline = 'middle';
+bCtx.fillText(selectedNumber, ball.x, ball.y);
+}
+// =================================================================
+// LOGIC GAME 2: TRÒ CHƠI BẮN CUNG CHIẾN THẮNG
+// =================================================================
+const aCanvas = document.getElementById('archeryCanvas');
+const aCtx = aCanvas.getContext('2d');
+const scoreDisplay = document.getElementById('score');
+let score = 0;
+let bow = { x: 60, y: 250 };
+let arrows = [];
+let target = { x: 720, y: 250, radius: 45, speed: 3.8, direction: 1 };
+function initArcheryGame() {
+aCanvas.addEventListener('mousemove', (e) => {
+const rect = aCanvas.getBoundingClientRect();
+bow.y = e.clientY - rect.top;
+});
+aCanvas.addEventListener('click', () => {
+arrows.push({ x: bow.x + 25, y: bow.y, speed: 15, active: true });
+});
+archeryLoop();
+}
+function archeryLoop() {
+if(gameCtrl.style.display === 'flex') {
+updateArchery();
+drawArchery();
+}
+requestAnimationFrame(archeryLoop);
+}
+function updateArchery() {
+// Tự động di chuyển bia mục tiêu lên xuống liên tục
+target.y += target.speed * target.direction;
+if (target.y - target.radius < 10 || target.y + target.radius > aCanvas.height - 10) {
+target.direction *= -1;
+}
+// Cập nhật tọa độ di chuyển của các mũi tên đang bay
+for (let i = 0; i < arrows.length; i++) {
+let arrow = arrows[i];
+if (arrow.active) {
+arrow.x += arrow.speed;
+let distance = Math.hypot(arrow.x - target.x, arrow.y - target.y);
+// Trúng bia mục tiêu
+if (distance < target.radius) {
+score += 10;
+scoreDisplay.innerText = score;
+arrow.active = false;
+}
+if (arrow.x > aCanvas.width) arrow.active = false;
+}
+}
+arrows = arrows.filter(arrow => arrow.active);
+}
+function drawArchery() {
+aCtx.clearRect(0, 0, aCanvas.width, aCanvas.height);
+// Vẽ bia mục tiêu hình tròn 3 màu chuẩn cung thủ
+aCtx.beginPath(); aCtx.arc(target.x, target.y, target.radius, 0, Math.PI * 2);
+aCtx.fillStyle = '#ff4757'; aCtx.fill();
+aCtx.beginPath(); aCtx.arc(target.x, target.y, target.radius * 0.65, 0, Math.PI * 2);
+aCtx.fillStyle = '#ffffff'; aCtx.fill();
+aCtx.beginPath(); aCtx.arc(target.x, target.y, target.radius * 0.3, 0, Math.PI * 2);
+aCtx.fillStyle = '#ffa502'; aCtx.fill();
+// Vẽ thân cây cung nghệ thuật
+aCtx.beginPath(); aCtx.arc(bow.x, bow.y, 35, -Math.PI / 2, Math.PI / 2, false);
+aCtx.lineWidth = 5; aCtx.strokeStyle = '#00f2fe'; aCtx.stroke();
+// Dây cung căng thẳng
+aCtx.beginPath(); aCtx.moveTo(bow.x, bow.y - 35); aCtx.lineTo(bow.x, bow.y + 35);
+aCtx.lineWidth = 1.2; aCtx.strokeStyle = '#a0a5c1'; aCtx.stroke();
+// Vẽ danh sách các mũi tên đang hoạt động trên màn hình
+arrows.forEach(arrow => {
+aCtx.beginPath(); aCtx.moveTo(arrow.x, arrow.y); aCtx.lineTo(arrow.x - 35, arrow.y);
+aCtx.lineWidth = 3; aCtx.strokeStyle = '#f1f2f6'; aCtx.stroke();
+// Đầu mũi tên nhọn
+aCtx.beginPath(); aCtx.fillStyle = '#ff4757';
+aCtx.moveTo(arrow.x, arrow.y);
+aCtx.lineTo(arrow.x - 10, arrow.y - 5); aCtx.lineTo(arrow.x - 10, arrow.y + 5);
+aCtx.fill();
+});
+}
